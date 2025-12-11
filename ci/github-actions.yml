@@ -1,0 +1,147 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Make src available as module
+      - name: Make src available as module
+        run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+
+      # Create tiny model for CI
+      - name: Create tiny model for CI
+        run: python scripts/create_tiny_model.py
+
+      # Tell tests to use the tiny model
+      - name: Set MODEL_PATH for CI
+        run: echo "MODEL_PATH=/tmp/local_model" >> $GITHUB_ENV
+
+      # Run tests
+      - name: Run tests
+        run: |
+          PYTHONPATH=$(pwd) pytest -v
+
+      # inference examples
+      - name: Quick inference test on multiple examples
+        run: |
+          python - <<EOF
+          import json
+          from src.sentiment import predict_sentiment
+
+          examples = [
+              "I love AI!",
+              "This product is terrible.",
+              "Could be better.",
+              "I'm not sure how I feel about this.",
+              "Best purchase ever!"
+          ]
+
+          results = {text: predict_sentiment(text) for text in examples}
+
+          with open("results.json", "w") as f:
+              json.dump(results, f, indent=2)
+
+          print("Saved results.json with predictions")
+          EOF
+
+      # Save tiny model as artifact
+      - name: Upload tiny model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiny-model
+          path: /tmp/local_model
+
+      # Upload inference results
+      - name: Upload inference results
+        uses: actions/upload-artifact@v4
+        with:
+          name: inference-results
+          path: results.json
+
+      # Build Docker image 
+      - name: Build Docker image
+        run: docker build -t mlops-sentiment-api:ci .
+
+
+      # Run container in background
+      - name: Run Docker container
+        run: |
+          docker run -d -p 8000:8000 \
+          -e USE_FAKE_MODEL=true \
+          --name sentiment-api mlops-sentiment-api:ci
+          sleep 40
+
+      # show container logs for debugging
+      - name: Show container logs
+        run: docker logs sentiment-api || true
+
+      # Call /predict to generate real monitoring data
+      - name: Call /predict endpoint to generate stats
+        run: |
+          curl -X POST "http://localhost:8000/predict" \
+          -H "Content-Type: application/json" \
+          -d '{"text":"I love this CI pipeline!"}'
+
+          curl -X POST "http://localhost:8000/predict" \
+          -H "Content-Type: application/json" \
+          -d '{"text":"This is terrible."}'
+
+          curl -X POST "http://localhost:8000/predict" \
+          -H "Content-Type: application/json" \
+          -d '{"text":"It is okay."}'
+    
+
+
+      # Save /stats endpoint output to JSON
+      - name: Save /stats to JSON
+        run: |
+          pip install requests
+          python - <<EOF
+          import json
+          import requests
+
+          resp = requests.get("http://localhost:8000/stats")
+          if resp.status_code == 200:
+              with open("stats.json", "w") as f:
+                  json.dump(resp.json(), f, indent=2)
+              print("Saved stats.json")
+          else:
+              print(f"Failed to get stats: {resp.status_code}")
+          EOF
+
+      # Upload stats artifact
+      - name: Upload stats artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stats
+          path: stats.json
+
+
+      # Stop and remove container
+      - name: Cleanup Docker
+        run: |
+          docker stop sentiment-api
+          docker rm sentiment-api
