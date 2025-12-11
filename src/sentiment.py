@@ -28,6 +28,8 @@ if USE_FAKE_MODEL:
 else:
     # Use Hugging Face Hub model by default
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    from transformers import logging
+    logging.set_verbosity_error()
     import torch
     import numpy as np
 

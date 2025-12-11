@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+
+mlops-env/
+venv/
+
+
+src/models/
+.cache/
+*.zip
+
+*.log
+stats.json

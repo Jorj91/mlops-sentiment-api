@@ -1,3 +1,11 @@
+# Purpose: to have a model trained on a small dataset to test local pipeline, API, and integration 
+# (small fine-tuning is performed on 100 train examples + 50 validation examples (just a demo run)).
+# The model used is cardiffnlp/twitter-roberta-base-sentiment-latest (already pre-trained on Twitter sentiment).
+import warnings
+from transformers import logging
+warnings.filterwarnings("ignore")
+logging.set_verbosity_error()
+
 import os
 import json
 import torch
@@ -13,7 +21,7 @@ MODEL_DIR = os.getenv("MODEL_PATH", "src/models/model_v1")
 LABELS = ["negative", "neutral", "positive"]
 
 def train_model():
-    print("Step 1: Loading dataset...")
+    print("Step 1: Loading TweetEval dataset...")
     dataset = load_dataset("tweet_eval", "sentiment")
 
     # Take small subset for demo
