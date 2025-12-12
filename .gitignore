@@ -1,13 +1,29 @@
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
+venv/
 mlops-env/
 venv/
-
+.venv/
 
 src/models/
 .cache/
-*.zip
+.huggingface/
+hf_home/
+huggingface_hub/
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
 *.log
 stats.json
+results.json

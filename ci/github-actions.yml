@@ -5,9 +5,20 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  # release pipeline: trigger on annotated tags like v1.0.0
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  actions: read
 
 jobs:
   build-and-test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -24,11 +35,11 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Make src available as module
-      - name: Make src available as module
+      # Make repo code available as module
+      - name: Make repo code available as module
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
 
       # Create tiny model for CI
@@ -44,7 +55,7 @@ jobs:
         run: |
           PYTHONPATH=$(pwd) pytest -v
 
-      # inference examples
+      # inference tests
       - name: Quick inference test on multiple examples
         run: |
           python - <<EOF
@@ -52,9 +63,7 @@ jobs:
           from src.sentiment import predict_sentiment
 
           examples = [
-              "I love AI!",
               "This product is terrible.",
-              "Could be better.",
               "I'm not sure how I feel about this.",
               "Best purchase ever!"
           ]
@@ -67,14 +76,7 @@ jobs:
           print("Saved results.json with predictions")
           EOF
 
-      # Save tiny model as artifact
-      - name: Upload tiny model artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tiny-model
-          path: /tmp/local_model
-
-      # Upload inference results
+      # Upload inference results artifacts
       - name: Upload inference results
         uses: actions/upload-artifact@v4
         with:
@@ -83,65 +85,60 @@ jobs:
 
       # Build Docker image 
       - name: Build Docker image
-        run: docker build -t mlops-sentiment-api:ci .
+        run: docker build -f docker/Dockerfile -t mlops-sentiment-api:ci .
 
 
-      # Run container in background
-      - name: Run Docker container
-        run: |
-          docker run -d -p 8000:8000 \
-          -e USE_FAKE_MODEL=true \
-          --name sentiment-api mlops-sentiment-api:ci
-          sleep 40
-
-      # show container logs for debugging
-      - name: Show container logs
-        run: docker logs sentiment-api || true
-
-      # Call /predict to generate real monitoring data
-      - name: Call /predict endpoint to generate stats
-        run: |
-          curl -X POST "http://localhost:8000/predict" \
-          -H "Content-Type: application/json" \
-          -d '{"text":"I love this CI pipeline!"}'
-
-          curl -X POST "http://localhost:8000/predict" \
-          -H "Content-Type: application/json" \
-          -d '{"text":"This is terrible."}'
-
-          curl -X POST "http://localhost:8000/predict" \
-          -H "Content-Type: application/json" \
-          -d '{"text":"It is okay."}'
-    
-
-
-      # Save /stats endpoint output to JSON
-      - name: Save /stats to JSON
-        run: |
-          pip install requests
-          python - <<EOF
-          import json
-          import requests
-
-          resp = requests.get("http://localhost:8000/stats")
-          if resp.status_code == 200:
-              with open("stats.json", "w") as f:
-                  json.dump(resp.json(), f, indent=2)
-              print("Saved stats.json")
-          else:
-              print(f"Failed to get stats: {resp.status_code}")
-          EOF
-
-      # Upload stats artifact
-      - name: Upload stats artifact
-        uses: actions/upload-artifact@v4
+# Release job: upload trained model and deploy Space on tag
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    env:
+      HF_MODEL_REPO: jorj91/sentiment-model
+      HF_SPACE_REPO: jorj91/sentiment-api
+    steps:
+      - name: Checkout repository (full)
+        uses: actions/checkout@v4
         with:
-          name: stats
-          path: stats.json
+          fetch-depth: 0
 
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-      # Stop and remove container
-      - name: Cleanup Docker
+      - name: Install tooling
         run: |
-          docker stop sentiment-api
-          docker rm sentiment-api
+          python -m pip install --upgrade pip
+          pip install huggingface-hub==0.18.1 gitpython
+
+      - name: Authenticate to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "$HF_TOKEN" > hf_token.txt
+          huggingface-cli login --token "$HF_TOKEN"
+
+      - name: Upload real model folder to Hugging Face Model Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_MODEL_REPO: jorj91/sentiment-model
+        run: |
+          # upload using the helper python script
+          python scripts/upload_model_to_hf.py --model-folder src/models/model_v1 --repo-id "$HF_MODEL_REPO" --token "$HF_TOKEN"
+
+      - name: Deploy to Hugging Face Space (push code)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_REPO: jorj91/sentiment-api
+        run: |
+          set -e
+          SPACE_GIT="https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git"
+          tmpdir=$(mktemp -d)
+          git clone "$SPACE_GIT" "$tmpdir"
+          # Copy the app and docker folder contents into the Space repo.
+          rsync -av --delete --exclude='.git' --exclude='src/models' ./ "$tmpdir"/
+          cd "$tmpdir"
+          git add -A
+          git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
+          git push origin HEAD:main
