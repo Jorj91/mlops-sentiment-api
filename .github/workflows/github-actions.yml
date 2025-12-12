@@ -3,12 +3,13 @@ name: CI/CD Pipeline
 on:
   push:
     branches: ["main"]
+    tags:
+      - 'v*'
   pull_request:
     branches: ["main"]
   # release pipeline: trigger on annotated tags like v1.0.0
   push:
-    tags:
-      - 'v*'
+
 
 permissions:
   contents: read
