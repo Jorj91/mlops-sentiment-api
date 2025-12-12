@@ -1,5 +1,11 @@
+import sys
+import os
+
+# Add project root to sys.path so imports work in CI
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi.testclient import TestClient
-from src.app import app
+from app import app
 from src.sentiment import predict_sentiment
 
 # unit tests on the model
