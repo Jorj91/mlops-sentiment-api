@@ -110,7 +110,7 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install huggingface-hub==0.18.1 gitpython
+          pip install huggingface-hub gitpython
 
       - name: Authenticate to Hugging Face
         env:
