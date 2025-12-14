@@ -154,9 +154,16 @@ jobs:
           SPACE_GIT="https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git"
           tmpdir=$(mktemp -d)
           git clone "$SPACE_GIT" "$tmpdir"
+
+          # configure git identity
+          cd "$tmpdir"
+          git config user.name "Github Actions"
+          git config user.email "actions@github.com"
+
+
           # Copy the app and docker folder contents into the Space repo.
           rsync -av --delete --exclude='.git' --exclude='src/models' ./ "$tmpdir"/
-          cd "$tmpdir"
+          
           git add -A
           git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
           git push origin HEAD:main
