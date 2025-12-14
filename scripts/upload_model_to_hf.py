@@ -4,7 +4,7 @@ Upload a local folder (trained model) to Hugging Face Model Hub. Script used by 
 import argparse
 import os
 import sys
-from huggingface_hub import HfApi, Repository, upload_folder
+from huggingface_hub import HfApi, upload_folder
 
 def main():
     p = argparse.ArgumentParser()
