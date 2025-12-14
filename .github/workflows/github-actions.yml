@@ -145,27 +145,29 @@ jobs:
           python scripts/upload_model_to_hf.py --model-folder src/models/model_v1 --repo-id "$HF_MODEL_REPO" --token "$HF_TOKEN"
 
 
-      - name: Deploy to Hugging Face Space (push code)
+      - name: Deploy to Hugging Face Space (SSH)
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HF_TOKEN }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
           tmpdir=$(mktemp -d)
 
-          # clone the space
-          git clone https://huggingface.co/spaces/jorj91/sentiment-api.git "$tmpdir"
+          # Configure SSH
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HF_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan huggingface.co >> ~/.ssh/known_hosts
 
-          # configure git identity
+          # Clone via SSH
+          git clone git@huggingface.co:spaces/jorj91/sentiment-api.git "$tmpdir"
+
           cd "$tmpdir"
-          git config user.name "Github Actions"
+          git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-
-          # Copy files from the original repo into the clone
+          # Copy files from repo into the clone
           rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
-          
+
           git add -A
           git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
           git push origin HEAD:main
