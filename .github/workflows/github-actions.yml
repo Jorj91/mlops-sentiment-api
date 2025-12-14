@@ -151,14 +151,16 @@ jobs:
           HF_SPACE_REPO: jorj91/sentiment-api
         run: |
           set -e
-          SPACE_GIT="https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git"
           tmpdir=$(mktemp -d)
-          git clone "$SPACE_GIT" "$tmpdir"
+          git clone https://huggingface.co/spaces/jorj91/sentiment-api.git "$tmpdir"
 
           # configure git identity
           cd "$tmpdir"
           git config user.name "Github Actions"
           git config user.email "actions@github.com"
+
+          # Set token for HTTPS push
+          git remote set-url origin https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git
 
 
           # Copy the app and docker folder contents into the Space repo.
