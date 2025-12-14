@@ -148,10 +148,12 @@ jobs:
       - name: Deploy to Hugging Face Space (push code)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE_REPO: jorj91/sentiment-api
+          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
           tmpdir=$(mktemp -d)
+
+          # clone the space
           git clone https://huggingface.co/spaces/jorj91/sentiment-api.git "$tmpdir"
 
           # configure git identity
@@ -162,8 +164,8 @@ jobs:
           # Set token for HTTPS push
           git remote set-url origin https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git
 
-          # Copy the app and docker folder contents into the Space repo.
-          rsync -av --delete --exclude='.git' --exclude='src/models' ./ "$tmpdir"/
+          # Copy files from the original repo into the clone
+          rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
           
           git add -A
           git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
