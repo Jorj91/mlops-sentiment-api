@@ -88,8 +88,7 @@ jobs:
         run: docker build -f docker/Dockerfile -t mlops-sentiment-api:ci .
 
 
-
-# Release job: upload trained model and deploy Space on tag
+  # Release job: upload trained model and deploy Space on tag
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -98,7 +97,7 @@ jobs:
       HF_MODEL_REPO: jorj91/sentiment-model
       HF_SPACE_REPO: jorj91/sentiment-api
       MODEL_PATH: src/models/model_v1
-
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - name: Checkout repository (full)
         uses: actions/checkout@v4
@@ -117,57 +116,42 @@ jobs:
           pip install "huggingface_hub[cli]" gitpython
 
       - name: Authenticate to Hugging Face
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-            python - <<EOF
-            from huggingface_hub import login
-            login(token="${HF_TOKEN}")
-            print("HF login successful")
-            EOF
+          python - <<EOF
+          from huggingface_hub import login
+          login(token="${HF_TOKEN}")
+          print("HF login successful")
+          EOF
 
       - name: Train real model (demo fine-tuning)
         run: |
           python src/train.py
-
 
       - name: Verify model folder
         run: |
           ls -lh src/models
           ls -lh src/models/model_v1
 
-
       - name: Upload real model folder to Hugging Face Model Hub
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_MODEL_REPO: jorj91/sentiment-model
         run: |
-          python scripts/upload_model_to_hf.py --model-folder src/models/model_v1 --repo-id "$HF_MODEL_REPO" --token "$HF_TOKEN"
+          python scripts/upload_model_to_hf.py \
+            --model-folder src/models/model_v1 \
+            --repo-id "$HF_MODEL_REPO" \
+            --token "$HF_TOKEN"
 
-
-      - name: Deploy to Hugging Face Space (SSH)
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
+      - name: Deploy to Hugging Face Space (HTTPS)
         run: |
           set -e
           tmpdir=$(mktemp -d)
+          SPACE_GIT="https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git"
+          git clone "$SPACE_GIT" "$tmpdir"
 
-          # Configure SSH
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HF_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan huggingface.co >> ~/.ssh/known_hosts
-
-          # Clone via SSH
-          git clone git@huggingface.co:spaces/jorj91/sentiment-api.git "$tmpdir"
+          # Copy files from repo into the clone, exclude models
+          rsync -av --delete --exclude='.git' --exclude='src/models' ./ "$tmpdir"/
 
           cd "$tmpdir"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-
-          # Copy files from repo into the clone
-          rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
-
           git add -A
           git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
           git push origin HEAD:main
