@@ -148,6 +148,7 @@ jobs:
       - name: Deploy to Hugging Face Space (push code)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGINGFACE_HUB_TOKEN: ${{ secrets.HF_TOKEN }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
@@ -161,8 +162,6 @@ jobs:
           git config user.name "Github Actions"
           git config user.email "actions@github.com"
 
-          # Set token for HTTPS push
-          git remote set-url origin https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git
 
           # Copy files from the original repo into the clone
           rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
