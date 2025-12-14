@@ -162,7 +162,6 @@ jobs:
           # Set token for HTTPS push
           git remote set-url origin https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git
 
-
           # Copy the app and docker folder contents into the Space repo.
           rsync -av --delete --exclude='.git' --exclude='src/models' ./ "$tmpdir"/
           
