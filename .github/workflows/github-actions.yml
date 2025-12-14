@@ -138,7 +138,7 @@ jobs:
             --model-folder src/models/model_v1 \
             --repo-id "$HF_MODEL_REPO" \
             --token "$HF_TOKEN"
-            
+
 
       - name: Deploy to Hugging Face Space
         env:
@@ -154,7 +154,9 @@ jobs:
           # Configure Git to use token for HTTPS push
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git remote set-url origin https://$HF_TOKEN@huggingface.co/spaces/jorj91/sentiment-api.git
+          
+          git remote set-url origin https://jorj91:${HF_TOKEN}@huggingface.co/spaces/jorj91/sentiment-api.git
+
 
           # Copy files from repo into the clone, excluding models
           rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
