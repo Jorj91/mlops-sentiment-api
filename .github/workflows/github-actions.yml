@@ -97,6 +97,8 @@ jobs:
     env:
       HF_MODEL_REPO: jorj91/sentiment-model
       HF_SPACE_REPO: jorj91/sentiment-api
+      MODEL_PATH: src/models/model_v1
+
     steps:
       - name: Checkout repository (full)
         uses: actions/checkout@v4
@@ -108,9 +110,10 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install tooling
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -r requirements.txt
           pip install "huggingface_hub[cli]" gitpython
 
       - name: Authenticate to Hugging Face
@@ -123,13 +126,24 @@ jobs:
             print("HF login successful")
             EOF
 
+      - name: Train real model (demo fine-tuning)
+        run: |
+          python src/train.py
+
+
+      - name: Verify model folder
+        run: |
+          ls -lh src/models
+          ls -lh src/models/model_v1
+
+
       - name: Upload real model folder to Hugging Face Model Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_MODEL_REPO: jorj91/sentiment-model
         run: |
-          # upload using the helper python script
           python scripts/upload_model_to_hf.py --model-folder src/models/model_v1 --repo-id "$HF_MODEL_REPO" --token "$HF_TOKEN"
+
 
       - name: Deploy to Hugging Face Space (push code)
         env:

@@ -29,8 +29,8 @@ def train_model():
     val_data = dataset["validation"].select(range(50))
 
     print("Step 2: Loading tokenizer and model...")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, local_files_only=True)
-    model = AutoModelForSequenceClassification.from_pretrained(MODEL_ID, ignore_mismatched_sizes=True, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_ID, ignore_mismatched_sizes=True)
 
     print("Step 3: Tokenizing dataset...")
     def tokenize(batch):
