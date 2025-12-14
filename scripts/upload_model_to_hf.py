@@ -31,8 +31,7 @@ def main():
         repo_id=repo_id,
         repo_type="model",
         token=token,
-        path_in_repo="",
-        max_workers=4
+        path_in_repo=""
     )
     print("Upload finished.")
 
