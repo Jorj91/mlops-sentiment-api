@@ -85,7 +85,7 @@ jobs:
 
       # Build Docker image 
       - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t mlops-sentiment-api:ci .
+        run: docker build -f Dockerfile -t mlops-sentiment-api:ci .
 
 
   # Release job: upload trained model and deploy Space on tag
