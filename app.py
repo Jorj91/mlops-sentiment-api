@@ -61,6 +61,6 @@ def get_stats():
             "accuracy": model_metadata.get("validation_accuracy"),
             "num_train_samples": model_metadata.get("num_train_samples"),
             "num_val_samples": model_metadata.get("num_val_samples"),
-        }
+        },
         **stats
     }
