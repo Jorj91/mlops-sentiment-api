@@ -63,13 +63,42 @@ def train_model():
     print("Step 4: Fine-tuning completed.")
 
 
+    print("Step 4b: Evaluating model on validation set...")
+    model.eval()
+
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for batch in val_loader:
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["label"].to(device)
+
+            outputs = model(input_ids, attention_mask=attention_mask)
+            preds = torch.argmax(outputs.logits, dim=1)
+
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+
+    val_accuracy = correct / total
+    print(f"Validation accuracy: {val_accuracy:.4f}")
+
+
     # Step 5: Save model and metadata
     os.makedirs(MODEL_DIR, exist_ok=True)
     model.save_pretrained(MODEL_DIR)
     tokenizer.save_pretrained(MODEL_DIR)
-    metadata = {"status": "trained", "version": "v1"}
+
+    metadata = {"status": "trained", 
+                "model_id": MODEL_ID,
+                "validation_accuracy": round(val_accuracy, 4),
+                "num_train_samples": len(train_data),
+                "num_val_samples": len(val_data)
+                }
+    
     with open(os.path.join(MODEL_DIR, "metadata.json"), "w") as f:
-        json.dump(metadata, f)
+        json.dump(metadata, f, indent=2)
 
     
     print(f"Step 5: Model saved to {MODEL_DIR}")

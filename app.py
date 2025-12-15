@@ -7,6 +7,14 @@ import json
 import os
 
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
+MODEL_METADATA_PATH = os.getenv("MODEL_METADATA_PATH", "src/models/model_v1/metadata.json")
+
+# Load reference metrics at startup - offline metrics
+try:
+    with open(MODEL_METADATA_PATH, "r") as f:
+        model_metadata = json.load(f)
+except FileNotFoundError:
+    model_metadata = {}
 
 app = FastAPI(title="Sentiment Monitoring API")
 
@@ -48,5 +56,11 @@ def predict(input_data: TextInput):
 def get_stats():
     return {
         "model_version": MODEL_VERSION,
+
+        "reference_metrics":{
+            "accuracy": model_metadata.get("validation_accuracy"),
+            "num_train_samples": model_metadata.get("num_train_samples"),
+            "num_val_samples": model_metadata.get("num_val_samples"),
+        }
         **stats
     }
