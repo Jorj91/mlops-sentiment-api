@@ -98,6 +98,7 @@ jobs:
       HF_SPACE_REPO: jorj91/sentiment-api
       MODEL_PATH: src/models/model_v1
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      MODEL_VERSION: ${{ github.ref_name }}
     steps:
       - name: Checkout repository (full)
         uses: actions/checkout@v4

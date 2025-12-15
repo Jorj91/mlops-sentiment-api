@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from src.sentiment import predict_sentiment
 import json
+import os
+
+MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
 
 app = FastAPI(title="Sentiment Monitoring API")
 
@@ -43,4 +46,7 @@ def predict(input_data: TextInput):
 
 @app.get("/stats")
 def get_stats():
-    return stats
+    return {
+        "model_version": MODEL_VERSION,
+        **stats
+    }
