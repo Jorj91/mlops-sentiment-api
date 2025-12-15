@@ -48,6 +48,16 @@ def save_stats():
     with open("stats.json", "w") as f:
         json.dump(stats, f)
 
+def compute_sentiment_percentages():
+    total = stats["total_requests"]
+    if total == 0:
+        return {label: 0.0 for label in stats["prediction_counts"]}
+
+    return {
+        label: round((count / total)*100, 2)
+        for label, count in stats["prediction_counts"].items()
+    }
+
 # Endpoints
 
 @app.get("/")
@@ -67,10 +77,16 @@ def get_stats():
     return {
         "model_version": MODEL_VERSION,
 
+        # offline evaluation metrics computed during training (reference only)
         "reference_metrics":{
             "accuracy": model_metadata.get("validation_accuracy"),
             "num_train_samples": model_metadata.get("num_train_samples"),
             "num_val_samples": model_metadata.get("num_val_samples"),
         },
-        **stats
+
+        # online monitoring metrics
+        "total_requests": stats["total_requests"],
+        "prediction_counts": stats["prediction_counts"],
+        "prediction_percentages": compute_sentiment_percentages()
+
     }

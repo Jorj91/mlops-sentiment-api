@@ -55,5 +55,5 @@ else:
         return {
             "text": text,
             "sentiment": label,
-            "probabilities": {LABELS[i]: float(probs[i]) for i in range(len(LABELS))}
+            "probabilities": {LABELS[i]: round(float(probs[i]),2) for i in range(len(LABELS))}
         }
