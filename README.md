@@ -1,1 +1,10 @@
-MLOps Project on Sentiment Reputation
+---
+title: Sentiment API
+emoji: 🤗
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
+# Sentiment API
