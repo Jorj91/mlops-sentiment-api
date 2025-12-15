@@ -11,3 +11,4 @@ datasets
 requests
 pyngrok
 json5
+huggingface_hub

@@ -5,16 +5,26 @@ from pydantic import BaseModel
 from src.sentiment import predict_sentiment
 import json
 import os
+from huggingface_hub import hf_hub_download
 
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
-MODEL_METADATA_PATH = os.getenv("MODEL_METADATA_PATH", "src/models/model_v1/metadata.json")
+MODEL_REPO_ID = os.getenv("HF_MODEL_REPO", "jorj91/sentiment-model")
 
-# Load reference metrics at startup - offline metrics
+# Load reference metrics at startup - offline metrics from model hub
+
 try:
-    with open(MODEL_METADATA_PATH, "r") as f:
+    metadata_path = hf_hub_download(
+        repo_id=MODEL_REPO_ID,
+        filename="metadata.json",
+        repo_type="model"
+    )
+    with open(metadata_path, "r") as f:
         model_metadata = json.load(f)
-except FileNotFoundError:
+except Exception as e:
+    print(f"Warning: could not load model metadata: {e}")
     model_metadata = {}
+
+###
 
 app = FastAPI(title="Sentiment Monitoring API")
 
@@ -42,7 +52,7 @@ def save_stats():
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to MachineInnovators Sentiment API"}
+    return {"message": "Welcome to MachineInnovators Sentiment API!"}
 
 @app.post("/predict")
 def predict(input_data: TextInput):
