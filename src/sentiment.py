@@ -1,4 +1,8 @@
-
+'''
+This module provides a function `predict_sentiment` that can run in two modes:
+- Fake model mode (used during CI/CD and fast testing)
+- Real model mode (using HF pretrained model)
+'''
 
 import os
 
@@ -11,6 +15,7 @@ if USE_FAKE_MODEL:
 
     LABELS = ["negative", "neutral", "positive"]
 
+    # fake sentiment predictor that always returns a fixed positive prediction (intentional).
     def predict_sentiment(text: str) -> dict:
         return {
             "text": text,
@@ -23,7 +28,7 @@ if USE_FAKE_MODEL:
         }
     
 
-# REAL MODEL (hugging face pre-trained)
+# REAL MODEL (HF pre-trained)
   
 else:
     # Use Hugging Face Hub model by default
@@ -33,23 +38,27 @@ else:
     import torch
     import numpy as np
 
-    # Default: hub model. Can be overridden with MODEL_PATH env var (e.g. local folder or other model id)
+    # Default: HF Hub model ID. Or, can be overridden with local folder path
     MODEL_PATH = os.getenv("MODEL_PATH", "cardiffnlp/twitter-roberta-base-sentiment-latest")
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
-    model.eval()
+    model.eval() # inference mode
 
     LABELS = ["negative", "neutral", "positive"]
 
     def predict_sentiment(text: str) -> dict:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True)
+
+        # predict sentiment for a single input test.
+
+        inputs = tokenizer(text, return_tensors="pt", truncation=True) # Tokenize input text 
 
         with torch.no_grad():
-            outputs = model(**inputs)
+            outputs = model(**inputs) # run inference with model
             scores = outputs.logits[0].cpu().numpy()
-            probs = np.exp(scores) / np.exp(scores).sum()
+            probs = np.exp(scores) / np.exp(scores).sum() #  softmax to convert logits to probabilities
 
+        # get label with highest prob
         label = LABELS[np.argmax(probs)]
 
         return {

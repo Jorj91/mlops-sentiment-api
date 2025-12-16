@@ -1,5 +1,5 @@
 """
-Upload a local folder (trained model) to Hugging Face Model Hub. Script used by GitHub Actions 'release' job.
+Upload a local folder (trained model) to HF Model Hub. Script used by GitHub Actions 'release' job.
 """
 import argparse
 import os
@@ -17,14 +17,17 @@ def main():
     repo_id = args.repo_id
     token = args.token
 
+     # initialize HF API client
     api = HfApi()
     # Create model repo if it doesn't exist
     try:
         api.create_repo(repo_id=repo_id, repo_type="model", private=False, token=token)
         print(f"Created model repo: {repo_id}")
     except Exception as e:
+        # repo already exists or creation failed for other reason
         print(f"Repo probably exists or creation failed: {e}")
 
+     # upload the trained model folder contents
     print(f"Uploading folder {model_folder} to {repo_id} ...")
     upload_folder(
         folder_path=model_folder,
