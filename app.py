@@ -1,4 +1,5 @@
 # FastAPI application for serving the model
+# This API exposes prediction and monitoring endpoints for online reputation analysis
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -8,9 +9,9 @@ import os
 from huggingface_hub import hf_hub_download
 
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
-MODEL_REPO_ID = os.getenv("HF_MODEL_REPO", "jorj91/sentiment-model")
+MODEL_REPO_ID = os.getenv("HF_MODEL_REPO", "jorj91/sentiment-model") # HF Model hub repo containing trained model + metadata
 
-# Load reference metrics at startup - offline metrics from model hub
+# Load reference offline evaluation metrics at startup - offline metrics from model hub
 
 try:
     metadata_path = hf_hub_download(
@@ -24,7 +25,7 @@ except Exception as e:
     print(f"Warning: could not load model metadata: {e}")
     model_metadata = {}
 
-###
+### FastAPI Initialization
 
 app = FastAPI(title="Sentiment Monitoring API")
 
@@ -32,7 +33,7 @@ class TextInput(BaseModel):
     text: str
 
 
-# Lightweight monitoring
+# lightweight online monitoring statistics
 
 stats = {
     "total_requests": 0,
@@ -58,12 +59,15 @@ def compute_sentiment_percentages():
         for label, count in stats["prediction_counts"].items()
     }
 
-# Endpoints
+# API Endpoints
 
+# welcome endpoint
 @app.get("/")
 def home():
     return {"message": "Welcome to MachineInnovators Sentiment API!"}
 
+
+# perform snetiment analysis on single input sentence
 @app.post("/predict")
 def predict(input_data: TextInput):
     result = predict_sentiment(input_data.text)
@@ -71,7 +75,7 @@ def predict(input_data: TextInput):
     save_stats()
     return result
 
-
+# monitoring endpoint
 @app.get("/stats")
 def get_stats():
     return {

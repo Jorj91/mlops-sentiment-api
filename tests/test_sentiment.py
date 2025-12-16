@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 from app import app
 from src.sentiment import predict_sentiment
 
-# unit tests on the model
+# UNIT TESTS on the model
 
-# single sentence test
+# single sentence test. It verifies that output contains expected keys + sentiment label is one of the allowed classes
 def test_sentiment_single():
     text = "I love AI!"
     result = predict_sentiment(text)
@@ -41,15 +41,16 @@ def test_sentiment_multiple():
         assert "probabilities" in result
         assert result["sentiment"] in ["positive", "neutral", "negative"]
 
-# API test for /stats
+# API TESTS for /stats
 
-client = TestClient(app)
+client = TestClient(app) # create a test client for the FastAPI app
 
 def test_stats_endpoint():
     resp = client.get("/stats")
-    assert resp.status_code == 200
+    assert resp.status_code == 200 # check that endpoint is reachable
     data = resp.json()
 
+    # check that response includes monitoring fields
     assert "total_requests" in data
     assert "prediction_counts" in data
 

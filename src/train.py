@@ -1,8 +1,12 @@
 # Purpose: to have a model trained on a small dataset to test local pipeline, API, and integration 
-# (small fine-tuning is performed on 100 train examples + 50 validation examples (just a demo run)).
+# (small fine-tuning is performed on 100 training samples + 50 validation sammples (just a demo run)).
 # The model used is cardiffnlp/twitter-roberta-base-sentiment-latest (already pre-trained on Twitter sentiment).
+# Offline metrics are computed and used as reference metrics in production monitoring.
+
 import warnings
 from transformers import logging
+
+# suppress warnings for cleaner CICD output
 warnings.filterwarnings("ignore")
 logging.set_verbosity_error()
 
@@ -14,13 +18,22 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.optim import AdamW
 from datasets import load_dataset
 
-
+# pretrained model used as starting point
 MODEL_ID = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-#MODEL_DIR = "src/models/model_v1"
+# directory where trained model will be saved
 MODEL_DIR = os.getenv("MODEL_PATH", "src/models/model_v1")
 LABELS = ["negative", "neutral", "positive"]
 
 def train_model():
+
+    ''''
+    Execute training pipeline:
+    Load dataset
+    Fine-tune model
+    Evaluation on validation set
+    Save model and metadata
+    '''
+
     print("Step 1: Loading TweetEval dataset...")
     dataset = load_dataset("tweet_eval", "sentiment")
 
@@ -34,11 +47,12 @@ def train_model():
 
     print("Step 3: Tokenizing dataset...")
     def tokenize(batch):
-        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=32)
+        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=32) # tokenize input with padding and truncation
         
     train_data = train_data.map(tokenize, batched=True)
     val_data = val_data.map(tokenize, batched=True)
 
+    # convert datasets to PyTorch tensors
     train_data.set_format(type="torch", columns=["input_ids", "attention_mask", "label"])
     val_data.set_format(type="torch", columns=["input_ids", "attention_mask", "label"])
 
@@ -85,7 +99,7 @@ def train_model():
     print(f"Validation accuracy: {val_accuracy:.4f}")
 
 
-    # Step 5: Save model and metadata
+    # Step 5: Save model artifacts and metadata
     os.makedirs(MODEL_DIR, exist_ok=True)
     model.save_pretrained(MODEL_DIR)
     tokenizer.save_pretrained(MODEL_DIR)
