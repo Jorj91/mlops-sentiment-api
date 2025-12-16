@@ -61,4 +61,14 @@ Goal: Automatically analyze sentiment (positive / neutral / negative) from socia
 ## Future Improvements
 - Automatic retraining based on new labeled data
 - Data drift detection
-- Advanced monitoring dashboards (e.g. Prometheus / Grafana)
+- Advanced monitoring dashboards (e.g. Grafana)
+
+
+## Project Submission
+Google Colab notebook:
+
+https://colab.research.google.com/drive/1XiR4oGwOceI616vkPJcy4iW-y_aAZkY3?usp=sharing
+
+Github Repository:
+
+https://github.com/Jorj91/mlops-sentiment-api
