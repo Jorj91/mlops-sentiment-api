@@ -7,7 +7,7 @@ on:
       - 'v*'
   pull_request:
     branches: ["main"]
-  # release pipeline: trigger on annotated tags like v1.0.0
+
 
 
 permissions:
@@ -93,29 +93,37 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: build-and-test
+
+    # Environment variables
     env:
-      HF_MODEL_REPO: jorj91/sentiment-model
-      HF_SPACE_REPO: jorj91/sentiment-api
-      MODEL_PATH: src/models/model_v1
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      MODEL_VERSION: ${{ github.ref_name }}
+      HF_MODEL_REPO: jorj91/sentiment-model # HF model repo
+      HF_SPACE_REPO: jorj91/sentiment-api   # HF space repo
+      MODEL_PATH: src/models/model_v1       # local path where trained model is saved
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}     # HF access token stored as github secret
+      MODEL_VERSION: ${{ github.ref_name }} # git tag name
+
+
     steps:
+      # Checkout full git history
       - name: Checkout repository (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Set up Python environment
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      # Install dependencies and HF tooling
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install "huggingface_hub[cli]" gitpython
 
+      # Authenticate to HF with access token
       - name: Authenticate to Hugging Face
         run: |
           python - <<EOF
@@ -124,15 +132,18 @@ jobs:
           print("HF login successful")
           EOF
 
+      # Train the real model
       - name: Train real model (demo fine-tuning)
         run: |
           python src/train.py
 
+      # Verify that the trained model and metadata exist
       - name: Verify model folder
         run: |
           ls -lh src/models
           ls -lh src/models/model_v1
 
+      # Upload trained model + metadata to HF Model Hub
       - name: Upload real model folder to Hugging Face Model Hub
         run: |
           python scripts/upload_model_to_hf.py \
@@ -140,28 +151,32 @@ jobs:
             --repo-id "$HF_MODEL_REPO" \
             --token "$HF_TOKEN"
 
-
+      #  Deploy the API to HF Spaces
       - name: Deploy to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
+
+          # Create temp directory and clone the Space repo
           tmpdir=$(mktemp -d)
           git clone https://huggingface.co/spaces/jorj91/sentiment-api.git "$tmpdir"
-
           cd "$tmpdir"
 
-          # Configure Git to use token for HTTPS push
+
+          # Configure git identity for automated commits
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           
+          # Authenticate git pushes using HF token
           git remote set-url origin https://jorj91:${HF_TOKEN}@huggingface.co/spaces/jorj91/sentiment-api.git
 
 
-          # Copy files from repo into the clone, excluding models
+          # Copy code into space repo, excluding .git folder and local trained model (already uploaded to model hub)
           rsync -av --delete --exclude='.git' --exclude='src/models' "$GITHUB_WORKSPACE"/ "$tmpdir"/
 
+          # commit and push changes if any
           git add -A
           git commit -m "Deploy from GitHub Actions: ${GITHUB_REF}" || echo "No changes to commit"
           git push origin HEAD:main
